@@ -1,55 +1,74 @@
 #!/bin/bash
 
-declare \
-  file= \
-  path= \
-  mode="00644" \
-  owner=root \
-  group=root \
-  resource= \
-  typed=ebextensions
+set -e
 
-while [[ $# -gt 0 ]]
-do
-  case $1 in
-    -f|--file)
-      file=$2
-      shift 2 || exit 2;
-      ;;
-    -p|--path)
-      path=$2
-      shift 2 || exit 2;
-      ;;
-    -r|--resource)
-      resource=$2
-      shift 2 || exit 2;
-      ;;
-    -m|--mode)
-      mode=$2
-      shift 2 || exit 2;
-      ;;
-    -t|--typed)
-      typed=$2
-      shift 2 || exit 2;
-      ;;
-    -o|--owner)
-      owner=$2
-      shift 2 || exit 2;
-      ;;
-    -g|--group)
-      group=$2
-      shift 2 || exit 2;
-      ;;
-    *)
-      echo "[ERROR] undefined flags: $@" >&2
-      exit 1
-      ;;
-  esac
-done
+__usage(){
+  cat <<EOF >&2
+usage:
+  ex) $0 --file path/to/file --path /path/to/file --mode 00400 > .ebextensions/ca-key-pem.config
+  ex) cat path/to/file | $0 --resource LCCoreOS --typed cloudformation-userdata > cloudformation.d/userdata-LCCoreOS.yaml
+EOF
+  return "$@"
+}
 
-case ${typed} in
-  eb*|ebextensions)
-    cat <<EOF
+__main(){
+  declare \
+    file= \
+    path= \
+    mode="00644" \
+    owner=root \
+    group=root \
+    resource= \
+    typed=ebextensions
+
+  __parse "$@"
+  __write
+}
+
+__parse(){
+  while [[ $# -gt 0 ]]
+  do
+    case $1 in
+      -f|--file)
+        file=$2
+        shift 2 || __usage 2;
+        ;;
+      -p|--path)
+        path=$2
+        shift 2 || __usage 2;
+        ;;
+      -r|--resource)
+        resource=$2
+        shift 2 || __usage 2;
+        ;;
+      -m|--mode)
+        mode=$2
+        shift 2 || __usage 2;
+        ;;
+      -t|--typed)
+        typed=$2
+        shift 2 || __usage 2;
+        ;;
+      -o|--owner)
+        owner=$2
+        shift 2 || __usage 2;
+        ;;
+      -g|--group)
+        group=$2
+        shift 2 || __usage 2;
+        ;;
+      *)
+        file=$1
+        shift || __usage 2;
+        ;;
+    esac
+  done
+}
+
+__write(){
+  case ${typed} in
+    eb*|ebextensions)
+      cat <<EOF
 ---
 files:
   ${path}:
@@ -58,11 +77,11 @@ files:
     group: ${group}
     content: |
 EOF
-    sed "s/^/      /g" ${file}
-    ;;
+      sed "s/^/      /g" ${file}
+      ;;
 
-  cc*|cloud-config)
-    cat <<EOF
+    cc*|cloud-config)
+      cat <<EOF
 ---
 write_files:
 - path: ${path}
@@ -71,11 +90,11 @@ write_files:
   group: ${group}
   content: |
 EOF
-    sed "s/^/    /g" ${file}
-    ;;
+      sed "s/^/    /g" ${file}
+      ;;
 
-  cu*|cloudformation-userdata)
-    cat <<EOF
+    cu*|cloudformation-userdata)
+      cat <<EOF
 ---
 Resources:
   ${resource}:
@@ -83,6 +102,9 @@ Resources:
       UserData:
         Fn::Base64: |
 EOF
-    sed "s/^/          /g" ${file}
-    ;;
-esac
+      sed "s/^/          /g" ${file}
+      ;;
+  esac
+}
+
+__main "$@"
