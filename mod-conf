@@ -85,7 +85,7 @@ EOF
 ---
 write_files:
 - path: ${path}
-  mode: "${mode}"
+  permissions: "${mode}"
   owner: ${owner}
   group: ${group}
   content: |
