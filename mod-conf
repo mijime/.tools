@@ -1,0 +1,88 @@
+#!/bin/bash
+
+declare \
+  file= \
+  path= \
+  mode="00644" \
+  owner=root \
+  group=root \
+  resource= \
+  typed=ebextensions
+
+while [[ $# -gt 0 ]]
+do
+  case $1 in
+    -f|--file)
+      file=$2
+      shift 2 || exit 2;
+      ;;
+    -p|--path)
+      path=$2
+      shift 2 || exit 2;
+      ;;
+    -r|--resource)
+      resource=$2
+      shift 2 || exit 2;
+      ;;
+    -m|--mode)
+      mode=$2
+      shift 2 || exit 2;
+      ;;
+    -t|--typed)
+      typed=$2
+      shift 2 || exit 2;
+      ;;
+    -o|--owner)
+      owner=$2
+      shift 2 || exit 2;
+      ;;
+    -g|--group)
+      group=$2
+      shift 2 || exit 2;
+      ;;
+    *)
+      echo "[ERROR] undefined flags: $@" >&2
+      exit 1
+      ;;
+  esac
+done
+
+case ${typed} in
+  eb*|ebextensions)
+    cat <<EOF
+---
+files:
+  ${path}:
+    mode: "${mode}"
+    owner: ${owner}
+    group: ${group}
+    content: |
+EOF
+    sed "s/^/      /g" ${file}
+    ;;
+
+  cc*|cloud-config)
+    cat <<EOF
+---
+write_files:
+- path: ${path}
+  mode: "${mode}"
+  owner: ${owner}
+  group: ${group}
+  content: |
+EOF
+    sed "s/^/    /g" ${file}
+    ;;
+
+  cu*|cloudformation-userdata)
+    cat <<EOF
+---
+Resources:
+  ${resource}:
+    Properties:
+      UserData:
+        Fn::Base64: |
+EOF
+    sed "s/^/          /g" ${file}
+    ;;
+esac
