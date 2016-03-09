@@ -18,7 +18,7 @@ __main(){
     ${stack_opts} \
     --stack-name "${stack}" \
     --template-body "${template_body}" \
-    --parameters "${parameters}" \
+    $([[ ! -z "${parameters}" ]] || echo "--parameters ${parameters}") \
     --capabilities CAPABILITY_IAM \
     --on-failure DELETE \
     || \
@@ -27,7 +27,7 @@ __main(){
     ${stack_opts} \
     --stack-name "${stack}" \
     --template-body "${template_body}" \
-    --parameters "${parameters}" \
+    $([[ ! -z "${parameters}" ]] || echo "--parameters ${parameters}") \
     --capabilities CAPABILITY_IAM \
     || \
 
