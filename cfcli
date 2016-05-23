@@ -86,7 +86,7 @@ cloudformation__output() {
   [[ -n "${CF_STACK}" ]]
   aws cloudformation describe-stacks \
     --stack-name "${CF_STACK}" \
-    --query "Stacks[].Outputs[]" \
+    --query "Stacks[].Outputs[].[OutputKey, OutputValue]" \
     --output text
 }
 
