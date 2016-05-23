@@ -1,0 +1,100 @@
+#!/bin/sh
+set -ue
+
+declare \
+  CF_STACK= \
+  CF_ACTION= \
+  TEMPLATE_BODY= \
+  PARAMETERS_BODY=
+
+while [[ $# -gt 0 ]]
+do
+  case $1 in
+    deploy|output|status)
+      CF_ACTION=$1
+      shift
+      ;;
+
+    --stack-name|--stack|-s)
+      CF_STACK=$2
+      shift 2 || exit 2
+      ;;
+
+    --template-body|--template|-t)
+      TEMPLATE_BODY=$2
+      shift 2 || exit 2
+      ;;
+
+    --parameters|-p)
+      PARAMETERS_BODY=$2
+      shift 2 || exit 2
+      ;;
+
+    --help|-h)
+      cat <<EOF
+Help $0
+
+Action:
+    deploy|output|status
+
+Flags:
+    --stack-name|--stack|-s)
+    --template-body|--template|-t)
+    --parameters|-p)
+    --help|-h)
+EOF
+      exit 0
+      ;;
+
+    *)
+      exit 1
+      ;;
+  esac
+done
+
+cloudformation__deploy() {
+  [[ -n "${CF_STACK}" ]]
+  [[ -f "${TEMPLATE_BODY}" ]]
+
+  if aws cloudformation get-template --stack-name "${CF_STACK}" > /dev/null 2> /dev/null
+  then
+    aws cloudformation update-stack \
+      --stack-name "${CF_STACK}" \
+      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters file://${PARAMETERS_BODY}` \
+      --template-body "file://${TEMPLATE_BODY}" \
+      --capabilities CAPABILITY_IAM \
+      --output text \
+      || exit 0
+
+    aws cloudformation wait stack-update-complete \
+      --stack-name "${CF_STACK}"
+  else
+    aws cloudformation create-stack \
+      --stack-name "${CF_STACK}" \
+      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters "file://${PARAMETERS_BODY}"` \
+      --template-body "file://${TEMPLATE_BODY}" \
+      --capabilities CAPABILITY_IAM \
+      --on-failure DELETE \
+      --output text
+
+    aws cloudformation wait stack-create-complete \
+      --stack-name "${CF_STACK}"
+  fi
+}
+
+cloudformation__output() {
+  [[ -n "${CF_STACK}" ]]
+  aws cloudformation describe-stacks \
+    --stack-name "${CF_STACK}" \
+    --query "Stacks[].Outputs[]" \
+    --output text
+}
+
+cloudformation__status() {
+  aws cloudformation describe-stacks \
+    --query "Stacks[].[StackName, StackStatus, StackStatusReason]" \
+    --output text
+}
+
+[[ -n "${CF_ACTION}" ]]
+cloudformation__${CF_ACTION}
