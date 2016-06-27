@@ -82,14 +82,17 @@ done
 
 cloudformation__deploy() {
   [[ -n "${CF_STACK}" ]]
-  [[ -f "${TEMPLATE_BODY}" ]]
+  [[ -n "${TEMPLATE_BODY}" ]]
+  if [[ -f "${TEMPLATE_BODY}" ]]
+  then TEMPLATE_BODY="file://${TEMPLATE_BODY}"
+  fi
 
   if aws cloudformation get-template --stack-name "${CF_STACK}" > /dev/null 2> /dev/null
   then
     aws cloudformation update-stack \
       --stack-name "${CF_STACK}" \
-      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters file://${PARAMETERS_BODY}` \
-      --template-body "file://${TEMPLATE_BODY}" \
+      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters ${PARAMETERS_BODY}` \
+      --template-body "${TEMPLATE_BODY}" \
       --capabilities CAPABILITY_IAM \
       `[[ -z ${CF_DEBUG} ]] || echo --debug` \
       --color "${CF_COLOR}" \
@@ -104,8 +107,8 @@ cloudformation__deploy() {
   else
     aws cloudformation create-stack \
       --stack-name "${CF_STACK}" \
-      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters "file://${PARAMETERS_BODY}"` \
-      --template-body "file://${TEMPLATE_BODY}" \
+      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters "${PARAMETERS_BODY}"` \
+      --template-body "${TEMPLATE_BODY}" \
       --capabilities CAPABILITY_IAM \
       --on-failure DELETE \
       `[[ -z ${CF_DEBUG} ]] || echo --debug` \
@@ -123,13 +126,16 @@ cloudformation__deploy() {
 cloudformation__patch() {
   [[ -n "${CF_STACK}" ]]
   [[ -n "${CF_CHANGE_SET}" ]]
-  [[ -f "${TEMPLATE_BODY}" ]]
+  [[ -n "${TEMPLATE_BODY}" ]]
+  if [[ -f "${TEMPLATE_BODY}" ]]
+  then TEMPLATE_BODY="file://${TEMPLATE_BODY}"
+  fi
 
   aws cloudformation create-change-set \
     --change-set-name "${CF_STACK}-${CF_CHANGE_SET}" \
     --stack-name "${CF_STACK}" \
-    `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters "file://${PARAMETERS_BODY}"` \
-    --template-body "file://${TEMPLATE_BODY}" \
+    `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters "${PARAMETERS_BODY}"` \
+    --template-body "${TEMPLATE_BODY}" \
     --capabilities CAPABILITY_IAM \
     `[[ -z ${CF_DEBUG} ]] || echo --debug` \
     --color "${CF_COLOR}" \
