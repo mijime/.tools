@@ -38,8 +38,8 @@ do
 
     --parameters|-p)
       PARAMETERS_BODY=$2
-      if [[ -f "${PARAMTER_BODY}" ]]
-      then PARAMTER_BODY="file://${PARAMTER_BODY}"
+      if [[ -f "${PARAMETERS_BODY}" ]]
+      then PARAMETERS_BODY="file://${PARAMETERS_BODY}"
       fi
       shift 2 || exit 2
       ;;
