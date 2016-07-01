@@ -30,11 +30,17 @@ do
 
     --template-body|--template|-t)
       TEMPLATE_BODY=$2
+      if [[ -f "${TEMPLATE_BODY}" ]]
+      then TEMPLATE_BODY="file://${TEMPLATE_BODY}"
+      fi
       shift 2 || exit 2
       ;;
 
     --parameters|-p)
       PARAMETERS_BODY=$2
+      if [[ -f "${PARAMTER_BODY}" ]]
+      then PARAMTER_BODY="file://${PARAMTER_BODY}"
+      fi
       shift 2 || exit 2
       ;;
 
@@ -83,9 +89,6 @@ done
 cloudformation__deploy() {
   [[ -n "${CF_STACK}" ]]
   [[ -n "${TEMPLATE_BODY}" ]]
-  if [[ -f "${TEMPLATE_BODY}" ]]
-  then TEMPLATE_BODY="file://${TEMPLATE_BODY}"
-  fi
 
   if aws cloudformation get-template --stack-name "${CF_STACK}" > /dev/null 2> /dev/null
   then
@@ -127,9 +130,6 @@ cloudformation__patch() {
   [[ -n "${CF_STACK}" ]]
   [[ -n "${CF_CHANGE_SET}" ]]
   [[ -n "${TEMPLATE_BODY}" ]]
-  if [[ -f "${TEMPLATE_BODY}" ]]
-  then TEMPLATE_BODY="file://${TEMPLATE_BODY}"
-  fi
 
   aws cloudformation create-change-set \
     --change-set-name "${CF_STACK}-${CF_CHANGE_SET}" \
