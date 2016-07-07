@@ -8,13 +8,54 @@ declare \
   CF_COLOR=auto \
   CF_DEBUG= \
   TEMPLATE_BODY=cloudformation.template \
-  PARAMETERS_BODY=
+  PARAMETERS_BODY= \
+  CF_MAX_ITEM=10
 
 while [[ $# -gt 0 ]]
 do
   case $1 in
-    deploy|output|status|apply|changes|patch|diff)
-      CF_ACTION=$1
+    deploy|d)
+      CF_ACTION=deploy
+      shift
+      ;;
+
+    output|o)
+      CF_ACTION=output
+      shift
+      ;;
+
+    status|s)
+      CF_ACTION=status
+      shift
+      ;;
+
+    apply|a)
+      CF_ACTION=apply
+      shift
+      ;;
+
+    changes|c)
+      CF_ACTION=changes
+      shift
+      ;;
+
+    patch|p)
+      CF_ACTION=patch
+      shift
+      ;;
+
+    diff|d)
+      CF_ACTION=diff
+      shift
+      ;;
+
+    logs|l)
+      CF_ACTION=logs
+      shift
+      ;;
+
+    help|h)
+      CF_ACTION=help
       shift
       ;;
 
@@ -44,6 +85,12 @@ do
       shift 2 || exit 2
       ;;
 
+    --max-item|--item|-i)
+      CF_MAX_ITEM=$2
+      shift 2 || exit 2
+      ;;
+
+
     --color)
       CF_COLOR=on
       shift
@@ -58,26 +105,6 @@ do
       CF_DEBUG=1
       set -x
       shift
-      ;;
-
-    --help|-h)
-      cat <<EOF
-Help $0
-
-Action:
-    deploy|output|status|apply|changes|patch|diff)
-
-Flags:
-    --stack-name|--stack|-s)
-    --change-set-name|--change|-c)
-    --template-body|--template|-t)
-    --parameters|-p)
-    --color)
-    --no-color)
-    --debug|-d)
-    --help|-h)
-EOF
-      exit 0
       ;;
 
     *)
@@ -201,6 +228,32 @@ cloudformation__status() {
     `[[ -z ${CF_DEBUG} ]] || echo --debug` \
     --color "${CF_COLOR}" \
     --output text
+}
+
+
+cloudformation__logs() {
+  aws cloudformation describe-stack-events \
+    --stack-name "${CF_STACK}" \
+    --max-item "${CF_MAX_ITEM}" \
+    --query "StackEvents[].[Timestamp,ResourceStatus,LogicalResourceId,ResourceStatusReason]" \
+    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
+    --color "${CF_COLOR}" \
+    --output text
+}
+
+cloudformation__help() {
+  cat <<EOF
+Usage: $0
+---
+
+Actions
+---
+`awk '/^ +[^- ].+)/{print}' $0`
+
+Flags
+---
+`awk '/^ +-.+)/{print}' $0`
+EOF
 }
 
 [[ -n "${CF_ACTION}" ]]
