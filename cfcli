@@ -14,8 +14,12 @@ declare \
 while [[ $# -gt 0 ]]
 do
   case $1 in
-    deploy|d)
+    deploy)
       CF_ACTION=deploy
+      shift
+      ;;
+    delete)
+      CF_ACTION=delete
       shift
       ;;
 
@@ -151,6 +155,16 @@ cloudformation__deploy() {
       --color "${CF_COLOR}" \
       --output text
   fi
+}
+
+cloudformation__delete() {
+  [[ -n "${CF_STACK}" ]]
+
+  aws cloudformation delete-stack \
+    --stack-name "${CF_STACK}" \
+    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
+    --color "${CF_COLOR}" \
+    --output text
 }
 
 cloudformation__patch() {
