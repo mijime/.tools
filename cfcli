@@ -1,17 +1,16 @@
 #!/bin/sh
 set -ue
 
-declare \
-  CF_STACK=`pwd|xargs basename` \
-  CF_CHANGE_SET=`date +%s|md5sum|cut -c -7` \
-  CF_ACTION= \
-  CF_COLOR=auto \
-  CF_DEBUG= \
-  TEMPLATE_BODY=cloudformation.template \
-  PARAMETERS_BODY= \
-  CF_MAX_ITEM=10
+CF_STACK="$(pwd|xargs basename)"
+CF_CHANGE_SET="$(date +%s|md5sum|cut -c -7)"
+CF_ACTION=""
+CF_OUTPUT="--output=text"
+CF_DEBUG=""
+TEMPLATE_BODY=cloudformation.template
+PARAMETERS_BODY=""
+CF_MAX_ITEM=10
 
-while [[ $# -gt 0 ]]
+while [ $# -gt 0 ]
 do
   case $1 in
     deploy)
@@ -75,7 +74,7 @@ do
 
     --template-body|--template|-t)
       TEMPLATE_BODY=$2
-      if [[ -f "${TEMPLATE_BODY}" ]]
+      if [ -f "${TEMPLATE_BODY}" ]
       then TEMPLATE_BODY="file://${TEMPLATE_BODY}"
       fi
       shift 2 || exit 2
@@ -83,7 +82,7 @@ do
 
     --parameters|-p)
       PARAMETERS_BODY=$2
-      if [[ -f "${PARAMETERS_BODY}" ]]
+      if [ -f "${PARAMETERS_BODY}" ]
       then PARAMETERS_BODY="file://${PARAMETERS_BODY}"
       fi
       shift 2 || exit 2
@@ -95,18 +94,8 @@ do
       ;;
 
 
-    --color)
-      CF_COLOR=on
-      shift
-      ;;
-
-    --no-color)
-      CF_COLOR=off
-      shift
-      ;;
-
     --debug|-d)
-      CF_DEBUG=1
+      CF_DEBUG="--debug"
       set -x
       shift
       ;;
@@ -118,130 +107,105 @@ do
 done
 
 cloudformation__deploy() {
-  [[ -n "${CF_STACK}" ]]
-  [[ -n "${TEMPLATE_BODY}" ]]
+  [ -n "${CF_STACK}" ]
+  [ -n "${TEMPLATE_BODY}" ]
 
   if aws cloudformation get-template --stack-name "${CF_STACK}" > /dev/null 2> /dev/null
   then
     aws cloudformation update-stack \
       --stack-name "${CF_STACK}" \
-      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters ${PARAMETERS_BODY}` \
+      "$([ -z "${PARAMETERS_BODY}" ] || echo --parameters)" "${PARAMETERS_BODY}" \
       --template-body "${TEMPLATE_BODY}" \
       --capabilities CAPABILITY_IAM \
-      `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-      --color "${CF_COLOR}" \
-      --output text \
-      || exit 0
+      "${CF_DEBUG}" "${CF_OUTPUT}" || exit 0
 
     aws cloudformation wait stack-update-complete \
       --stack-name "${CF_STACK}" \
-      `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-      --color "${CF_COLOR}" \
-      --output text
+      "${CF_DEBUG}" "${CF_OUTPUT}"
   else
     aws cloudformation create-stack \
       --stack-name "${CF_STACK}" \
-      `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters "${PARAMETERS_BODY}"` \
+      "$([ -z "${PARAMETERS_BODY}" ] || echo --parameters)" "${PARAMETERS_BODY}" \
       --template-body "${TEMPLATE_BODY}" \
       --capabilities CAPABILITY_IAM \
       --on-failure DELETE \
-      `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-      --color "${CF_COLOR}" \
-      --output text
+      "${CF_DEBUG}" "${CF_OUTPUT}"
 
     aws cloudformation wait stack-create-complete \
       --stack-name "${CF_STACK}" \
-      `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-      --color "${CF_COLOR}" \
-      --output text
+      "${CF_DEBUG}" "${CF_OUTPUT}"
   fi
 }
 
 cloudformation__delete() {
-  [[ -n "${CF_STACK}" ]]
+  [ -n "${CF_STACK}" ]
 
   aws cloudformation delete-stack \
     --stack-name "${CF_STACK}" \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 cloudformation__patch() {
-  [[ -n "${CF_STACK}" ]]
-  [[ -n "${CF_CHANGE_SET}" ]]
-  [[ -n "${TEMPLATE_BODY}" ]]
+  [ -n "${CF_STACK}" ]
+  [ -n "${CF_CHANGE_SET}" ]
+  [ -n "${TEMPLATE_BODY}" ]
 
   aws cloudformation create-change-set \
     --change-set-name "${CF_STACK}-${CF_CHANGE_SET}" \
     --stack-name "${CF_STACK}" \
-    `[[ -z ${PARAMETERS_BODY} ]] || echo --parameters "${PARAMETERS_BODY}"` \
+    "$([ -z "${PARAMETERS_BODY}" ] || echo --parameters)" "${PARAMETERS_BODY}" \
     --template-body "${TEMPLATE_BODY}" \
     --capabilities CAPABILITY_IAM \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 cloudformation__diff() {
-  [[ -n "${CF_STACK}" ]]
-  [[ -n "${CF_CHANGE_SET}" ]]
+  [ -n "${CF_STACK}" ]
+  [ -n "${CF_CHANGE_SET}" ]
 
   aws cloudformation describe-change-set \
     --change-set-name "${CF_STACK}-${CF_CHANGE_SET}" \
     --stack-name "${CF_STACK}" \
     --query "Changes[].[ResourceChange.[Action,ResourceType,LogicalResourceId]]" \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 cloudformation__changes() {
-  [[ -n "${CF_STACK}" ]]
+  [ -n "${CF_STACK}" ]
 
   aws cloudformation list-change-sets \
     --stack-name "${CF_STACK}" \
     --query 'Summaries[].[ChangeSetName, Status]' \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 cloudformation__apply() {
-  [[ -n "${CF_STACK}" ]]
-  [[ -n "${CF_CHANGE_SET}" ]]
+  [ -n "${CF_STACK}" ]
+  [ -n "${CF_CHANGE_SET}" ]
 
   aws cloudformation execute-change-set \
     --change-set-name "${CF_STACK}-${CF_CHANGE_SET}" \
     --stack-name "${CF_STACK}" \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 
   aws cloudformation wait stack-update-complete \
     --stack-name "${CF_STACK}" \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 cloudformation__output() {
-  [[ -n "${CF_STACK}" ]]
+  [ -n "${CF_STACK}" ]
 
   aws cloudformation describe-stacks \
     --stack-name "${CF_STACK}" \
     --query "Stacks[].Outputs[].[OutputKey, OutputValue]" \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 cloudformation__status() {
   aws cloudformation describe-stacks \
     --query "Stacks[].[StackName, StackStatus, StackStatusReason]" \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 
@@ -250,25 +214,23 @@ cloudformation__logs() {
     --stack-name "${CF_STACK}" \
     --max-item "${CF_MAX_ITEM}" \
     --query "StackEvents[].[Timestamp,ResourceStatus,LogicalResourceId,ResourceStatusReason]" \
-    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
-    --color "${CF_COLOR}" \
-    --output text
+    "${CF_DEBUG}" "${CF_OUTPUT}"
 }
 
 cloudformation__help() {
   cat <<EOF
-Usage: $0
----
+  Usage: $0
+  ---
 
-Actions
----
-`awk '/^ +[^- ].+)/{print}' $0`
+  Actions
+  ---
+$(awk '/^ +[^- $$].+)$/{print}' "$0")
 
-Flags
----
-`awk '/^ +-.+)/{print}' $0`
+  Flags
+  ---
+$(awk '/^ +-.+)$/{print}' "$0")
 EOF
 }
 
-[[ -n "${CF_ACTION}" ]]
+[ -n "${CF_ACTION}" ]
 cloudformation__${CF_ACTION}
