@@ -1,0 +1,83 @@
+#!/bin/bash
+set -ue
+
+declare \
+  __v__action="" \
+  __v__funcname="" \
+  __v__stream="" \
+  __v__debug="" \
+  __v__limit=10
+
+__main() {
+  while [[ $# -gt 0 ]]
+  do
+    case $1 in
+      list)
+        __v__action=list
+        shift || return 1
+        ;;
+
+      logs)
+        __v__action=logs
+        shift || return 1
+        ;;
+
+      --function|-f)
+        __v__funcname=$2
+        shift 2 || return 2
+        ;;
+
+      --stream|-s)
+        __v__stream=$2
+        shift 2 || return 2
+        ;;
+
+      --debug|-d)
+        set -x
+        __v__debug=--debug
+        shift || return 1
+        ;;
+      *)
+        echo "no defined args: $1" >&2
+        return 3
+        ;;
+    esac
+  done
+
+  "__aws__lambda__${__v__action}"
+}
+
+__aws__lambda__list() {
+  aws lambda list-functions \
+    --query "Functions[].[Runtime,FunctionName,Handler]" \
+    --output text
+}
+
+__aws__lambda__logs() {
+  [[ -n "${__v__funcname}" ]] || return 3
+
+  if [[ -z "${__v__stream}" ]]
+  then
+    __v__stream="$({
+    aws logs describe-log-streams \
+      --log-group-name "/aws/lambda/${__v__funcname}" \
+      --query 'logStreams[].[lastEventTimestamp,arn]' \
+      ${__v__debug} \
+      --limit "${__v__limit}" \
+      --output text \
+      | sort -n | tail -n 1 | awk -v FS=":" '{print$NF}'
+  })"
+
+  [[ -n "${__v__stream}" ]] || return 3
+fi
+
+aws logs get-log-events \
+  --log-group-name "/aws/lambda/${__v__funcname}" \
+  --log-stream-name "${__v__stream}" \
+  --query "events[].[timestamp, message]" \
+  ${__v__debug} \
+  --limit "${__v__limit}" \
+  --output text
+}
+
+__main "$@"
