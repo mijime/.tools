@@ -64,6 +64,11 @@ do
       shift
       ;;
 
+    template|t*mpl*)
+      CF_ACTION=template
+      shift
+      ;;
+
     help|h)
       CF_ACTION=help
       shift
@@ -269,6 +274,15 @@ cloudformation__logs() {
     `[[ -z ${CF_DEBUG} ]] || echo --debug` \
     --color "${CF_COLOR}" \
     --output text
+}
+
+cloudformation__template() {
+  [[ -n "${CF_STACK}" ]]
+
+  aws cloudformation get-template --stack-name "${CF_STACK}" \
+    `[[ -z ${CF_DEBUG} ]] || echo --debug` \
+    --color "${CF_COLOR}" \
+    --output json
 }
 
 cloudformation__help() {
